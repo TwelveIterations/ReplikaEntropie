@@ -7,6 +7,8 @@ import net.blay09.mods.replikaentropie.component.AssemblyTicket;
 import net.blay09.mods.replikaentropie.component.ModDataComponents;
 import net.blay09.mods.replikaentropie.item.ModItems;
 import net.blay09.mods.replikaentropie.recipe.*;
+import net.blay09.mods.replikaentropie.registry.ModDynamicRegistries;
+import net.blay09.mods.replikaentropie.registry.Research;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
@@ -148,8 +150,8 @@ public class ReplikaEntropieRecipeViewerProvider implements RecipeViewerInfoProv
     }
 
     private static void registerResearchRecipes(RecipeViewerRegistrar registrar) {
-        registrar.registerRecipeType(id("research"), ResearchRecipe.class)
-                .withSyncedRecipes(ModRecipes.research)
+        registrar.registerCustomRecipeType(id("research"), Research.class)
+                .withDynamicRegistry(ModDynamicRegistries.RESEARCH)
                 .withCraftingStation(ModItems.skyScraper)
                 .buildDisplay(display -> display
                         .title(Component.translatable(id("research").toLanguageKey("jei")))
@@ -171,10 +173,10 @@ public class ReplikaEntropieRecipeViewerProvider implements RecipeViewerInfoProv
                             }
 
                             final var icon = recipe.icon().create();
-                            if (recipe.type() == ResearchRecipe.Type.ASSEMBLER) {
+                            if (recipe.type() == Research.Type.ASSEMBLER) {
                                 slots.outputSlot(44, 14).add(createAssemblyTicket(icon));
                                 slots.renderOnlySlot(73, 14).add(icon);
-                            } else if (recipe.type() == ResearchRecipe.Type.LORE) {
+                            } else if (recipe.type() == Research.Type.LORE) {
                                 slots.renderOnlySlot(44, 14).add(icon);
                             } else {
                                 slots.outputSlot(44, 14).add(icon);
