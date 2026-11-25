@@ -1,5 +1,6 @@
 package net.blay09.mods.replikaentropie.block.entity;
 
+import net.blay09.mods.replikaentropie.FluidUnits;
 import net.blay09.mods.balm.Balm;
 import net.blay09.mods.balm.platform.capabilities.CommonCapabilities;
 import net.blay09.mods.balm.platform.fluid.DefaultFluidTank;
@@ -36,8 +37,8 @@ public class LavaSinkBlockEntity extends BlockEntity implements BalmContainerPro
     public static final int BUCKET_SLOT = 1;
     public static final int CONTAINER_SIZE = 2;
     public static final int PROCESSING_TICKS = 50;
-    public static final int LAVA_PER_OPERATION = 250;
-    public static final int LAVA_CAPACITY = 4000;
+    public static final int LAVA_PER_OPERATION = 250 * FluidUnits.MILLIBUCKET;
+    public static final int LAVA_CAPACITY = 4 * FluidUnits.BUCKET;
 
     private final DefaultContainer backingContainer = new DefaultContainer(CONTAINER_SIZE) {
         @Override
@@ -76,8 +77,8 @@ public class LavaSinkBlockEntity extends BlockEntity implements BalmContainerPro
             return switch (index) {
                 case LavaSinkMenu.DATA_PROCESSING_TICKS -> processingTicks;
                 case LavaSinkMenu.DATA_MAX_PROCESSING_TICKS -> PROCESSING_TICKS;
-                case LavaSinkMenu.DATA_LAVA_TANK -> lavaTank.getAmount();
-                case LavaSinkMenu.DATA_MAX_LAVA_TANK -> lavaTank.getCapacity();
+                case LavaSinkMenu.DATA_LAVA_TANK -> FluidUnits.toMillibuckets(lavaTank.getAmount());
+                case LavaSinkMenu.DATA_MAX_LAVA_TANK -> FluidUnits.toMillibuckets(lavaTank.getCapacity());
                 default -> 0;
             };
         }
@@ -130,8 +131,8 @@ public class LavaSinkBlockEntity extends BlockEntity implements BalmContainerPro
 
     private void fillBuckets() {
         final var bucketStack = backingContainer.getItem(BUCKET_SLOT);
-        if (bucketStack.is(Items.BUCKET) && bucketStack.count() == 1 && lavaTank.getAmount() >= 1000) {
-            lavaTank.drain(Fluids.LAVA, 1000, false);
+        if (bucketStack.is(Items.BUCKET) && bucketStack.count() == 1 && lavaTank.getAmount() >= FluidUnits.BUCKET) {
+            lavaTank.drain(Fluids.LAVA, FluidUnits.BUCKET, false);
             backingContainer.setItem(BUCKET_SLOT, new ItemStack(Items.LAVA_BUCKET));
             setChanged();
         }
@@ -146,7 +147,7 @@ public class LavaSinkBlockEntity extends BlockEntity implements BalmContainerPro
             final var blockEntity = level.getBlockEntity(currentPos);
             if (blockEntity instanceof FragmentalHeaterBlockEntity fragmentalHeaterBlockEntity) {
                 if (fragmentalHeaterBlockEntity.adjustTemperature(0.1f)) {
-                    lavaTank.drain(Fluids.LAVA, 1, false);
+                    lavaTank.drain(Fluids.LAVA, FluidUnits.MILLIBUCKET, false);
                     setChanged();
                 }
                 return;
@@ -178,14 +179,14 @@ public class LavaSinkBlockEntity extends BlockEntity implements BalmContainerPro
     @Override
     protected void loadAdditional(ValueInput input) {
         ContainerHelper.loadAllItems(input, backingContainer.getItems());
-        input.child("LavaTank").ifPresent(lavaTank::deserialize);
+        input.child("LavaTank").ifPresent(tankInput -> FluidUnits.deserialize(lavaTank, tankInput, lavaTank.getCapacity()));
         processingTicks = input.getIntOr("ProcessingTicks", 0);
     }
 
     @Override
     protected void saveAdditional(ValueOutput output) {
         ContainerHelper.saveAllItems(output, backingContainer.getItems());
-        lavaTank.serialize(output.child("LavaTank"));
+        FluidUnits.serialize(lavaTank, output.child("LavaTank"));
         output.putInt("ProcessingTicks", processingTicks);
     }
 

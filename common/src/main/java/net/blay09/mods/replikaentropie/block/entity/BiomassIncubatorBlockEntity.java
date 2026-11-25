@@ -1,5 +1,6 @@
 package net.blay09.mods.replikaentropie.block.entity;
 
+import net.blay09.mods.replikaentropie.FluidUnits;
 import net.blay09.mods.balm.platform.energy.BalmEnergyStorageProvider;
 import net.blay09.mods.balm.platform.energy.EnergyStorage;
 import net.blay09.mods.balm.platform.fluid.BalmFluidTankProvider;
@@ -87,7 +88,7 @@ public class BiomassIncubatorBlockEntity extends BlockEntity implements BalmCont
     private final Container seedsContainer = new SubContainer(backingContainer, 1, 2);
     private final Container soilContainer = new SubContainer(backingContainer, 2, 3);
     private final SubContainer outputContainer = new SubContainer(backingContainer, 3, 7);
-    private final DefaultFluidTank waterTank = new DefaultFluidTank(3000) {
+    private final DefaultFluidTank waterTank = new DefaultFluidTank(3 * FluidUnits.BUCKET) {
         @Override
         public boolean canFill(Fluid fluid) {
             return fluid.isSame(Fluids.WATER);
@@ -111,8 +112,8 @@ public class BiomassIncubatorBlockEntity extends BlockEntity implements BalmCont
         @Override
         public int get(int index) {
             return switch (index) {
-                case BiomassIncubatorMenu.DATA_WATER_TANK -> waterTank.getAmount();
-                case BiomassIncubatorMenu.DATA_MAX_WATER_TANK -> waterTank.getCapacity();
+                case BiomassIncubatorMenu.DATA_WATER_TANK -> FluidUnits.toMillibuckets(waterTank.getAmount());
+                case BiomassIncubatorMenu.DATA_MAX_WATER_TANK -> FluidUnits.toMillibuckets(waterTank.getCapacity());
                 case BiomassIncubatorMenu.DATA_GROWTH_TIME -> growthTicks;
                 case BiomassIncubatorMenu.DATA_MAX_GROWTH_TIME -> GROWTH_TICKS;
                 case BiomassIncubatorMenu.DATA_CURRENT_POWER -> energyStorage.getEnergy();
@@ -158,15 +159,15 @@ public class BiomassIncubatorBlockEntity extends BlockEntity implements BalmCont
 
     private void processBuckets() {
         final var waterBucket = waterContainer.getItem(0);
-        if (waterBucket.is(Items.WATER_BUCKET) && waterTank.getAmount() + 1000 <= waterTank.getCapacity()) {
-            waterTank.fill(Fluids.WATER, 1000, false);
+        if (waterBucket.is(Items.WATER_BUCKET) && waterTank.getAmount() + FluidUnits.BUCKET <= waterTank.getCapacity()) {
+            waterTank.fill(Fluids.WATER, FluidUnits.BUCKET, false);
             waterContainer.setItem(0, new ItemStack(Items.BUCKET));
             setChanged();
         }
     }
 
     private boolean hasWater(BiomassIncubatorRecipe recipe) {
-        return waterTank.getAmount() >= recipe.water();
+        return waterTank.getAmount() >= (long) recipe.water() * FluidUnits.MILLIBUCKET;
     }
 
     private void processGrowth() {
@@ -209,7 +210,7 @@ public class BiomassIncubatorBlockEntity extends BlockEntity implements BalmCont
         }
 
         final var biomassIncubatorRecipe = recipe.get();
-        waterTank.drain(Fluids.WATER, biomassIncubatorRecipe.water(), false);
+        waterTank.drain(Fluids.WATER, biomassIncubatorRecipe.water() * FluidUnits.MILLIBUCKET, false);
         insertOrBuffer(biomassIncubatorRecipe.result().create());
         growthTicks = 0;
         setChanged();
@@ -245,7 +246,7 @@ public class BiomassIncubatorBlockEntity extends BlockEntity implements BalmCont
     protected void loadAdditional(ValueInput input) {
         backingContainer.getItems().clear();
         ContainerHelper.loadAllItems(input, backingContainer.getItems());
-        input.child("WaterTank").ifPresent(waterTank::deserialize);
+        input.child("WaterTank").ifPresent(tankInput -> FluidUnits.deserialize(waterTank, tankInput, waterTank.getCapacity()));
         outputBuffer.clear();
         input.child("OutputBuffer").ifPresent(child -> ContainerHelper.loadAllItems(child, outputBuffer));
 
@@ -256,7 +257,7 @@ public class BiomassIncubatorBlockEntity extends BlockEntity implements BalmCont
     @Override
     protected void saveAdditional(ValueOutput output) {
         ContainerHelper.saveAllItems(output, backingContainer.getItems());
-        waterTank.serialize(output.child("WaterTank"));
+        FluidUnits.serialize(waterTank, output.child("WaterTank"));
         ContainerHelper.saveAllItems(output.child("OutputBuffer"), outputBuffer);
 
         output.putInt("GrowthTicks", growthTicks);

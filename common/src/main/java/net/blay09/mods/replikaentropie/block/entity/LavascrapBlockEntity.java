@@ -1,5 +1,6 @@
 package net.blay09.mods.replikaentropie.block.entity;
 
+import net.blay09.mods.replikaentropie.FluidUnits;
 import net.blay09.mods.balm.platform.fluid.BalmFluidTankProvider;
 import net.blay09.mods.balm.platform.fluid.DefaultFluidTank;
 import net.blay09.mods.balm.platform.fluid.FluidTank;
@@ -35,13 +36,13 @@ public class LavascrapBlockEntity extends AbstractScrapGeneratorBlockEntity impl
     private final Container waterInputContainer = new SubContainer(backingContainer, 1, 2);
     private final Container lavaInputContainer = new SubContainer(backingContainer, 2, 3);
 
-    private final DefaultFluidTank waterTank = new DefaultFluidTank(3000) {
+    private final DefaultFluidTank waterTank = new DefaultFluidTank(3 * FluidUnits.BUCKET) {
         @Override
         public boolean canFill(Fluid fluid) {
             return fluid.isSame(Fluids.WATER);
         }
     };
-    private final DefaultFluidTank lavaTank = new DefaultFluidTank(3000) {
+    private final DefaultFluidTank lavaTank = new DefaultFluidTank(3 * FluidUnits.BUCKET) {
         @Override
         public boolean canFill(Fluid fluid) {
             return fluid.isSame(Fluids.LAVA);
@@ -55,10 +56,10 @@ public class LavascrapBlockEntity extends AbstractScrapGeneratorBlockEntity impl
             return switch (index) {
                 case LavascrapMenu.DATA_PROCESSING_TICKS -> processingTicks;
                 case LavascrapMenu.DATA_MAX_PROCESSING_TICKS -> PROCESSING_TICKS;
-                case LavascrapMenu.DATA_WATER_TANK -> waterTank.getAmount();
-                case LavascrapMenu.DATA_MAX_WATER_TANK -> waterTank.getCapacity();
-                case LavascrapMenu.DATA_LAVA_TANK -> lavaTank.getAmount();
-                case LavascrapMenu.DATA_MAX_LAVA_TANK -> lavaTank.getCapacity();
+                case LavascrapMenu.DATA_WATER_TANK -> FluidUnits.toMillibuckets(waterTank.getAmount());
+                case LavascrapMenu.DATA_MAX_WATER_TANK -> FluidUnits.toMillibuckets(waterTank.getCapacity());
+                case LavascrapMenu.DATA_LAVA_TANK -> FluidUnits.toMillibuckets(lavaTank.getAmount());
+                case LavascrapMenu.DATA_MAX_LAVA_TANK -> FluidUnits.toMillibuckets(lavaTank.getCapacity());
                 default -> 0;
             };
         }
@@ -113,15 +114,15 @@ public class LavascrapBlockEntity extends AbstractScrapGeneratorBlockEntity impl
 
     private void processBuckets() {
         final var waterBucket = waterInputContainer.getItem(0);
-        if (waterBucket.is(Items.WATER_BUCKET) && waterTank.getAmount() + 1000 <= waterTank.getCapacity()) {
-            waterTank.fill(Fluids.WATER, 1000, false);
+        if (waterBucket.is(Items.WATER_BUCKET) && waterTank.getAmount() + FluidUnits.BUCKET <= waterTank.getCapacity()) {
+            waterTank.fill(Fluids.WATER, FluidUnits.BUCKET, false);
             waterInputContainer.setItem(0, new ItemStack(Items.BUCKET));
             setChanged();
         }
 
         final var lavaBucket = lavaInputContainer.getItem(0);
-        if (lavaBucket.is(Items.LAVA_BUCKET) && lavaTank.getAmount() + 1000 <= lavaTank.getCapacity()) {
-            lavaTank.fill(Fluids.LAVA, 1000, false);
+        if (lavaBucket.is(Items.LAVA_BUCKET) && lavaTank.getAmount() + FluidUnits.BUCKET <= lavaTank.getCapacity()) {
+            lavaTank.fill(Fluids.LAVA, FluidUnits.BUCKET, false);
             lavaInputContainer.setItem(0, new ItemStack(Items.BUCKET));
             setChanged();
         }
@@ -134,26 +135,26 @@ public class LavascrapBlockEntity extends AbstractScrapGeneratorBlockEntity impl
 
     @Override
     protected boolean hasInputResources() {
-        return waterTank.getAmount() >= 1000 && lavaTank.getAmount() >= 1000;
+        return waterTank.getAmount() >= FluidUnits.BUCKET && lavaTank.getAmount() >= FluidUnits.BUCKET;
     }
 
     @Override
     protected ItemStack consumeResourcesAndCreateInput() {
-        waterTank.drain(Fluids.WATER, 1000, false);
-        lavaTank.drain(Fluids.LAVA, 1000, false);
+        waterTank.drain(Fluids.WATER, FluidUnits.BUCKET, false);
+        lavaTank.drain(Fluids.LAVA, FluidUnits.BUCKET, false);
         return new ItemStack(Items.OBSIDIAN);
     }
 
     @Override
     protected void loadAdditional(ValueInput input) {
-        input.child("WaterTank").ifPresent(waterTank::deserialize);
-        input.child("LavaTank").ifPresent(lavaTank::deserialize);
+        input.child("WaterTank").ifPresent(tankInput -> FluidUnits.deserialize(waterTank, tankInput, waterTank.getCapacity()));
+        input.child("LavaTank").ifPresent(tankInput -> FluidUnits.deserialize(lavaTank, tankInput, lavaTank.getCapacity()));
     }
 
     @Override
     protected void saveAdditional(ValueOutput output) {
-        waterTank.serialize(output.child("WaterTank"));
-        lavaTank.serialize(output.child("LavaTank"));
+        FluidUnits.serialize(waterTank, output.child("WaterTank"));
+        FluidUnits.serialize(lavaTank, output.child("LavaTank"));
     }
 
     public BalmMenuProvider<Unit> getMenuProvider() {

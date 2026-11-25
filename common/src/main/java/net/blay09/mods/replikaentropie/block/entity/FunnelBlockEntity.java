@@ -1,5 +1,6 @@
 package net.blay09.mods.replikaentropie.block.entity;
 
+import net.blay09.mods.replikaentropie.FluidUnits;
 import net.blay09.mods.balm.Balm;
 import net.blay09.mods.balm.platform.capabilities.CommonCapabilities;
 import net.blay09.mods.balm.platform.fluid.BalmFluidTankProvider;
@@ -17,7 +18,7 @@ import net.minecraft.world.level.storage.ValueOutput;
 import org.jspecify.annotations.Nullable;
 
 public class FunnelBlockEntity extends BlockEntity implements BalmFluidTankProvider {
-    private static final int FLUID_CAPACITY = 4000;
+    private static final int FLUID_CAPACITY = 4 * FluidUnits.BUCKET;
 
     private final DefaultFluidTank fluidTank = new DefaultFluidTank(FLUID_CAPACITY) {
         @Override
@@ -90,12 +91,12 @@ public class FunnelBlockEntity extends BlockEntity implements BalmFluidTankProvi
 
     @Override
     protected void loadAdditional(ValueInput input) {
-        input.child("FluidTank").ifPresent(fluidTank::deserialize);
+        input.child("FluidTank").ifPresent(tankInput -> FluidUnits.deserialize(fluidTank, tankInput, fluidTank.getCapacity()));
     }
 
     @Override
     protected void saveAdditional(ValueOutput output) {
-        fluidTank.serialize(output.child("FluidTank"));
+        FluidUnits.serialize(fluidTank, output.child("FluidTank"));
     }
 
     @Override
